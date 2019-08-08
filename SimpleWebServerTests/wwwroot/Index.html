@@ -1,0 +1,291 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>Bootstrap 4 Website Example</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+
+    <script  type="text/javascript">
+        
+        function uploadFile() {
+            var file = document.getElementById("file1").files[0];
+            // alert(file.name+" | "+file.size+" | "+file.type);
+            var formdata = new FormData();
+            formdata.append("file1", file);
+            var ajax = new XMLHttpRequest();
+            ajax.upload.addEventListener("progress", progressHandler, false);
+            ajax.addEventListener("load", completeHandler, false);
+            ajax.addEventListener("error", errorHandler, false);
+            ajax.addEventListener("abort", abortHandler, false);
+            ajax.open("POST", "file_upload_parser.php");
+            ajax.send(formdata);
+        }
+        function progressHandler(event) {
+            document.getElementById("loaded_n_total").innerHTML = "Uploaded " + event.loaded + " bytes of " + event.total;
+            var percent = (event.loaded / event.total) * 100;
+            document.getElementById("progressBar").value = Math.round(percent);
+            document.getElementById("status").innerHTML = Math.round(percent) + "% uploaded... please wait";
+        }
+        function completeHandler(event) {
+            document.getElementById("status").innerHTML = event.target.responseText;
+            document.getElementById("progressBar").value = 0;
+        }
+        function errorHandler(event) {
+            document.getElementById("status").innerHTML = "Upload Failed";
+        }
+        function abortHandler(event) {
+            document.getElementById("status").innerHTML = "Upload Aborted";
+        }
+
+
+    </script>
+    <style>
+        .row {
+            margin-top: 10px;
+            padding: 12px;
+            border: 1px solid gray;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container" style="">
+
+        <div class="row">
+            <div class="col-12">
+                <button type="button" class="btn btn-primary" onclick="ServerEventSourceTest();">Server Event Source Test</button>
+                <button type="button" class="btn btn-primary" onclick="WebSocketTest();">Web Socket Test</button>
+                <button type="button" class="btn btn-primary" onclick="AjaxTestJson();">Ajax Test</button>
+                <button type="button" class="btn btn-primary" onclick="VideoTest();">Video Test</button>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12 card">
+                <p>Video Streaming Test:</p>
+                <div id="div-video"></div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <form id="frmTest">
+                    <select name="enctype">
+                        <option value="application/x-www-form-urlencoded">application/x-www-form-urlencoded</option>
+                        <option value="multipart/form-data">multipart/form-data</option>
+                        <option value="text/plain">text/plain</option>
+                    </select>
+
+                    <select name="method">
+                        <option value="get">get</option>
+                        <option value="post">post</option>
+                    </select>
+
+                    <select name="connection">
+                        <option value="form">form</option>
+                        <option value="ajax">ajax</option>
+                    </select>
+
+
+
+                    <div class="form-group">
+                        <label for="email">Email:</label>
+                        <input type="email" class="form-control" id="email" placeholder="Enter email" name="email">
+                    </div>
+                    <div class="form-group">
+                        <label for="pwd">Password:</label>
+                        <input type="password" class="form-control" id="pwd" placeholder="Enter password" name="pswd">
+                    </div>
+                    <div class="form-group form-check">
+                        <label class="form-check-label">
+                            <input class="form-check-input" type="checkbox" name="remember"> Remember me
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <input type="file" class="form-control-file border" id="customFile" name="myfile">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Submit</button>
+                </form>
+            </div>
+        </div>
+
+
+
+
+    </div>
+
+
+    <div id="result"></div>
+
+
+    <form id="upload_form" enctype="multipart/form-data" method="post">
+        <input type="file" name="file1" id="file1"><br>
+        <input type="button" value="Upload File" onclick="uploadFile()">
+        <progress id="progressBar" value="0" max="100" style="width:300px;"></progress>
+        <h3 id="status"></h3>
+        <p id="loaded_n_total"></p>
+    </form>
+
+
+
+
+
+
+
+
+    <script type="text/javascript" defer>
+        var ws = null
+        var i = 0;
+
+
+
+
+
+        function ServerEventSourceTest() {
+            if (typeof (EventSource) !== "undefined") {
+                var source = new EventSource("TestSSE");
+                source.addEventListener('message', function (event) {
+                    document.getElementById("result").innerHTML += event.data + "<br>";
+                });
+                source.addEventListener('customevent', function (event) {
+                    document.getElementById("result").innerHTML += event.data + "<br>";
+                });
+            } else {
+                alert("EventSource NOT supported by your Browser!");
+            }
+        }
+
+        function WebSocketTest() {
+
+            // The browser doesn't support WebSocket
+            if (typeof (EventSource) !== "undefined") {
+                if (ws === null) {
+                    // Let us open a web socket
+                    ws = new WebSocket("ws://" + location.host + "/TestSocket");
+
+                    ws.onopen = function () {
+                        console.log("Socket is open...");
+                        setTimeout(() => {
+                            // Web Socket is connected, send data using send()
+                            ws.send('Testing WebSocket');
+                        }, 1000);
+
+                    };
+
+                    ws.onmessage = function (evt) {
+                        console.log(evt);
+                        var received_msg = evt.data;
+                        document.getElementById("result").innerHTML += received_msg + "<br>";
+                    };
+
+                    ws.onclose = function () {
+                        // websocket is closed.
+                        console.log("Connection is closed...");
+
+                    };
+
+                }
+            }
+            else {
+                alert("WebSocket NOT supported by your Browser!");
+            }
+
+        }
+        function getBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+            });
+        }
+
+
+        function AjaxTestJson(test) {
+
+            var file = document.querySelector('input[type="file"]').files[0];
+
+
+            var file = document.querySelector('input[type="file"]').files[0];
+            getBase64(file).then(
+                data =>
+                    $.ajax({
+                        type: "POST",
+                        url: 'TestAjax',
+                        contentType: 'application/json; charset=utf-8',
+                        data: JSON.stringify({ param1: "param 1", param2: "param2", param3: data }),
+                        success: function (received_msg) {
+                            document.getElementById("result").innerHTML += received_msg + "<br>";
+                        },
+                    })
+            );
+
+
+
+            //document.getElementById('div-video').innerHTML = '<video width="400" controls><source src="movie.mp4" type="video/mp4">Your browser does not support HTML5 video.</video>';
+
+            // http://api.jquery.com/jquery.ajax/ see for more details
+            // For cross-domain requests, setting the content type to anything other than application/x-www-form-urlencoded, multipart/form-data, or text/plain will trigger the browser to send a preflight OPTIONS request to the server.
+            // Ajax requests are sent using the GET HTTP method, post is UTF-8 charset
+            // if dictionary; jQuery.param() is used
+            // converters (default: {"* text": window.String, "text html": true, "text json": jQuery.parseJSON, "text xml": jQuery.parseXML})
+            // dataType (default: Intelligent Guess (xml, json, script, or html))
+
+            // $.ajax({
+            //    type: "POST",
+            //    url: 'TestAjax',
+            //    data: { param1: "param 1", param2: "param+2%X", param3: "param&3" },
+            //    success: function (received_msg) {
+            //       document.getElementById("result").innerHTML += received_msg + "<br>";
+            //    },
+            // });
+
+
+            // var formData = new FormData();
+
+            // formData.append("username", "Groucho");
+            // formData.append("accountnum", 123456); // number 123456 is immediately converted to a string "123456"
+
+            // fileInputElement = document.getElementById('filetoupload')
+            // // HTML file input, chosen by user
+            // formData.append("userfile", fileInputElement.files[0]);
+
+            // // JavaScript file-like object
+            // var content = '<a id="a"><b id="b">hey!</b></a>'; // the body of the new file...
+            // var blob = new Blob([content], { type: "text/xml" });
+
+            // // formData.append("webmasterfile", blob);
+
+            // var request = new XMLHttpRequest();
+            // request.open("POST", "TestPost");
+            // request.send(formData);
+
+
+        }
+
+        function VideoTest() {
+            x = '<video width="200" controls><source src="Raindrops_Videvo.mp4" type="video/mp4">Your browser does not support HTML5 video.</video>';
+            $('#result').html(x);
+        }
+
+        $("form").submit(function (e) {
+            //e.preventDefault();
+            enctype = ($("form [name='enctype']").val())
+            method = ($("form [name='method']").val())
+            $("form").attr("method", method);
+            $("form").attr("enctype", enctype);
+            //return false;
+        });
+    </script>
+
+
+
+
+</body>
+
+</html>
