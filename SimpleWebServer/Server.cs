@@ -246,6 +246,7 @@ namespace SimpleWebServer
             try
             {
                 Respond(clientSocket);
+
             }
             catch (SocketException ex)
             {
