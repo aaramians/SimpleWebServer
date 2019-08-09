@@ -241,18 +241,23 @@ namespace SimpleWebServer
         {
             var clientSocket = socket as Socket;
 
-            Debug.WriteLine("new connection {0}", clientSocket.RemoteEndPoint);
-
+            Trace.TraceInformation("Connected {0}", clientSocket.RemoteEndPoint);
+           
             try
             {
                 Respond(clientSocket);
             }
+            catch (SocketException ex)
+            {
+                if (ex.SocketErrorCode == SocketError.TimedOut)
+                    Debug.WriteLine("Timeout - {0}", ex.Message, null);
+                else
+                    throw ex;
+            }
+
             catch (Exception ex)
             {
-                Debug.WriteLine("Error! {0}", ex.Message);
-                clientSocket.Send(Encoding.ASCII.GetBytes(HttpReposnes[500]));
-                clientSocket.Send(Encoding.ASCII.GetBytes("Connection: Closed\r\n"));
-                clientSocket.Send(Encoding.ASCII.GetBytes("\r\n"));
+                Trace.TraceError(ex.Message);
 #if (DEBUG)
                 throw ex;
 #endif
@@ -302,7 +307,7 @@ namespace SimpleWebServer
                         if (line.StartsWith("GET") || line.StartsWith("POST"))
                         {
 
-                            // Todo longer url encoded requests passing buffer length
+                            // TODO longer url encoded requests passing buffer length
 
                             var t = line.Split(' ');
                             request.command = t[0];
@@ -401,7 +406,6 @@ namespace SimpleWebServer
                         if (t[i] == '\r' && t[i + 1] == '\n')
                         {
                             line = Encoding.ASCII.GetString(t, cStart, i - cStart);
-                            Debug.WriteLine(line);
 
                             cStart = i + 2;
                         }
@@ -417,6 +421,9 @@ namespace SimpleWebServer
                         if (!line.EndsWith(boundaryMarker))
                             throw new InvalidOperationException("Expecting boundary");
 
+                        Debug.WriteLine("boundary: {0}", line, null);
+
+
                         var bLines = new List<string>();
 
                         // extract headers
@@ -425,12 +432,13 @@ namespace SimpleWebServer
                             if (t[ib] == '\r' && t[ib + 1] == '\n')
                             {
                                 var bline = Encoding.ASCII.GetString(t, cStart, ib - cStart);
-                                Debug.WriteLine(bline);
 
                                 cStart = ib + 2;
 
                                 if (bline == "")
                                     break;
+
+                                Debug.WriteLine(bline);
 
                                 bLines.Add(bline);
                             }
@@ -454,7 +462,7 @@ namespace SimpleWebServer
 
                                 // + 2 for cr and lf
                                 Debug.WriteLineIf(payload.Length < 256, Encoding.ASCII.GetString(t, cStart, ic - cStart - 2));
-                                Debug.WriteLineIf(payload.Length >= 256, "Large payload");
+                                Debug.WriteLine("Boundary length: {0}", payload.Length, null);
                                 cStart = i = ic;
                                 break;
                             }
@@ -469,9 +477,9 @@ namespace SimpleWebServer
                             request.mimetype = MimeTypes[mime];
 
 
-                if (request.mimetype != null && System.IO.File.Exists($"wwwroot{request.route}"))
+                if (request.mimetype != null && System.IO.File.Exists($"./../../../wwwroot{request.route}"))
                 {
-                    byte[] response = System.IO.File.ReadAllBytes($"wwwroot{request.route}");
+                    byte[] response = System.IO.File.ReadAllBytes($"./../../../wwwroot{request.route}");
                     socket.Send(Encoding.ASCII.GetBytes(HttpReposnes[200]));
                     socket.Send(Encoding.ASCII.GetBytes($"Content-Length: {response.Length}\r\n"));
                     socket.Send(Encoding.ASCII.GetBytes($"Content-Type: {request.mimetype}\r\n"));
@@ -528,7 +536,7 @@ namespace SimpleWebServer
 
                     // queue up to 10 requests
                     listener.Listen(10);
-                    Debug.WriteLine("Waiting connection ... ");
+                    Trace.TraceInformation("Listening http://{0}:{1}/Index.html", "localhost", localEndPoint.Port);
 
                     while (true)
                     {
