@@ -237,23 +237,31 @@ namespace SimpleWebServer
 
         }
 
-        public void Handle(object socket)
+        public void Handle(object p1)
         {
-            var clientSocket = socket as Socket;
+            var tcpclient = p1 as TcpClient;
 
-            Trace.TraceInformation("Connected {0}", clientSocket.RemoteEndPoint);
-           
+            Trace.TraceInformation("Connected {0}", tcpclient.Client.SocketType);
+
             try
             {
-                Respond(clientSocket);
+                while (!tcpclient.Connected)
+                {
+                    // Todo implement a timeout
+                    // wait for connection
+                }
+
+                Respond(tcpclient);
 
             }
             catch (SocketException ex)
             {
                 if (ex.SocketErrorCode == SocketError.TimedOut)
                     Debug.WriteLine("Timeout - {0}", ex.Message, null);
+#if (DEBUG)
                 else
                     throw ex;
+#endif
             }
 
             catch (Exception ex)
@@ -265,22 +273,21 @@ namespace SimpleWebServer
             }
             finally
             {
-                clientSocket.Shutdown(SocketShutdown.Both);
-                clientSocket.Close();
-                clientSocket.Dispose();
+                tcpclient.Close();
             }
         }
 
-        public void Respond(Socket socket)
+        public void Respond(TcpClient socket)
         {
-            var buffer = new Byte[6 * 1024];
+            var buffer = new Byte[4 * 1024];
             int bufferLength = 0;
 
             socket.ReceiveTimeout = 30000;
+            //socket.ReceiveTimeout = 30000;
             //socket.SendTimeout = 30000;
             {
                 // Data buffer 
-                bufferLength = socket.Receive(buffer);
+                bufferLength = socket.Client.Receive(buffer);
 
                 var request = new Request();
 
@@ -364,7 +371,7 @@ namespace SimpleWebServer
 
                     while (cStart < request.ContentLength)
                     {
-                        bufferLength = socket.Receive(buffer);
+                        bufferLength = socket.Client.Receive(buffer);
                         System.Buffer.BlockCopy(buffer, 0, t, cStart, bufferLength);
                         cStart += bufferLength;
                     }
@@ -379,7 +386,7 @@ namespace SimpleWebServer
 
                     while (cStart < request.ContentLength)
                     {
-                        bufferLength = socket.Receive(buffer);
+                        bufferLength = socket.Client.Receive(buffer);
 
                         System.Buffer.BlockCopy(buffer, 0, t, cStart, bufferLength);
                         cStart += bufferLength;
@@ -395,7 +402,7 @@ namespace SimpleWebServer
 
                     while (cStart < request.ContentLength)
                     {
-                        bufferLength = socket.Receive(buffer);
+                        bufferLength = socket.Client.Receive(buffer);
                         System.Buffer.BlockCopy(buffer, 0, t, cStart, bufferLength);
                         cStart += bufferLength;
                     }
@@ -450,6 +457,8 @@ namespace SimpleWebServer
                         {
                             bool match = true;
                             int j = 0;
+
+                            // match case with boundary
                             while (match && j < boundaryMarker.Length)
                                 if (t[ic + j] == boundaryMarker[0 + j])
                                     ++j;
@@ -471,90 +480,79 @@ namespace SimpleWebServer
                     }
                 }
 
-                //print('{' + str(i) + ', "HTTP/1.1 ' + str(i) + ' ' + __responses[i][0] + '\\r\\n" },')
+                bool nothing = true;
+
                 if (request.route != null)
                     foreach (string mime in MimeTypes.Keys)
                         if (request.route.EndsWith(mime))
                             request.mimetype = MimeTypes[mime];
 
+                if (request.mimetype != null)
+                    if (System.IO.File.Exists($"./../../../wwwroot{request.route}"))
+                    {
+                        nothing = false;
+                        byte[] response = System.IO.File.ReadAllBytes($"./../../../wwwroot{request.route}");
+                        socket.Client.Send(Encoding.ASCII.GetBytes(HttpReposnes[200]));
+                        socket.Client.Send(Encoding.ASCII.GetBytes($"Content-Length: {response.Length}\r\n"));
+                        socket.Client.Send(Encoding.ASCII.GetBytes($"Content-Type: {request.mimetype}\r\n"));
+                        socket.Client.Send(Encoding.ASCII.GetBytes("Connection: Closed\r\n"));
+                        socket.Client.Send(Encoding.ASCII.GetBytes("\r\n"));
+                        socket.Client.Send(response);
+                    }
+                    else
+                    {
+                        nothing = false;
+                        socket.Client.Send(Encoding.ASCII.GetBytes(HttpReposnes[404]));
+                        socket.Client.Send(Encoding.ASCII.GetBytes("Connection: Closed\r\n"));
+                        socket.Client.Send(Encoding.ASCII.GetBytes("\r\n"));
+                    }
 
-                if (request.mimetype != null && System.IO.File.Exists($"./../../../wwwroot{request.route}"))
+                if (nothing)
                 {
-                    byte[] response = System.IO.File.ReadAllBytes($"./../../../wwwroot{request.route}");
-                    socket.Send(Encoding.ASCII.GetBytes(HttpReposnes[200]));
-                    socket.Send(Encoding.ASCII.GetBytes($"Content-Length: {response.Length}\r\n"));
-                    socket.Send(Encoding.ASCII.GetBytes($"Content-Type: {request.mimetype}\r\n"));
-                    socket.Send(Encoding.ASCII.GetBytes("Connection: Closed\r\n"));
-                    socket.Send(Encoding.ASCII.GetBytes("\r\n"));
-                    socket.Send(response);
-
+                    socket.Client.Send(Encoding.ASCII.GetBytes(HttpReposnes[200]));
+                    socket.Client.Send(Encoding.ASCII.GetBytes($"Content-Length: 0\r\n"));
+                    socket.Client.Send(Encoding.ASCII.GetBytes($"Content-Type: {MimeTypes[".html"]}\r\n"));
+                    socket.Client.Send(Encoding.ASCII.GetBytes("Connection: Closed\r\n"));
+                    socket.Client.Send(Encoding.ASCII.GetBytes("\r\n"));
                 }
-                else
-                {
-                    socket.Send(Encoding.ASCII.GetBytes(HttpReposnes[404]));
-                    socket.Send(Encoding.ASCII.GetBytes("Connection: Closed\r\n"));
-                    socket.Send(Encoding.ASCII.GetBytes("\r\n"));
-                }
-
-                //data += Encoding.ASCII.GetString(reqBuff, 0, reqBuffLen);
-
-                ////    if (data.IndexOf("<EOF>") > -1)
-                ////        break;
-                //////}
-
-                //Debug.WriteLine("Text received -> {0} ", data);
-                //byte[] message = Encoding.ASCII.GetBytes("Test Server");
-
-                // Send a message to Client  
-                // using Send() method 
-                //clientSocket.Send(message);
-
-                // Close client Socket using the 
-                // Close() method. After closing, 
-                // we can use the closed Socket  
-                // for a new Client Connection 
             }
 
         }
 
     }
 
-    class ServerListener
+    public class ServerListener
     {
         public void Listen()
         {
             var ipHost = Dns.GetHostEntry(Dns.GetHostName());
             var ipAddr = ipHost.AddressList[0];
-            var localEndPoint = new IPEndPoint(IPAddress.Any, 65125);
+            var localEndPoint = new IPEndPoint(IPAddress.Loopback, 65125);
 
-            using (var listener = new Socket(localEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp))
+            var listener = new TcpListener(localEndPoint);
+            try
             {
-                try
+
+                // listening on network interface
+                listener.Start(10);
+
+                // queue up to 10 requests
+                Trace.TraceInformation("Listening http://{0}:{1}/Index.html", "localhost", localEndPoint.Port);
+
+                while (true)
                 {
-
-                    // listening on network interface
-                    listener.Bind(localEndPoint);
-
-                    // queue up to 10 requests
-                    listener.Listen(10);
-                    Trace.TraceInformation("Listening http://{0}:{1}/Index.html", "localhost", localEndPoint.Port);
-
-                    while (true)
-                    {
-                        var client = new Client();
-                        var t = new Thread(new ParameterizedThreadStart(client.Handle));
-                        t.Start(listener.Accept());
-                    }
-                }
-                catch (Exception e)
-                {
-                    Debug.WriteLine(e.Message);
-
-                    throw e;
+                    var client = new Client();
+                    var t = new Thread(new ParameterizedThreadStart(client.Handle));
+                    t.Start(listener.AcceptTcpClient());
                 }
             }
-        }
+            catch (Exception e)
+            {
+                Debug.WriteLine(e.Message);
 
+                throw e;
+            }
+        }
     }
     public class Server
     {
