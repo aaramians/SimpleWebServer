@@ -338,3 +338,7 @@ ASALocalRun/
 
 # BeatPulse healthcheck temp database
 healthchecksdb
+/wwwroot/content/video.mov
+/wwwroot/content/video.mp4
+
+*.gitignore

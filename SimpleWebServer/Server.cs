@@ -10,286 +10,75 @@ using System.Threading.Tasks;
 
 namespace SimpleWebServer
 {
-    class Client
+    internal class ClientConnection
     {
-        public class Request
-        {
-            public string command;
-            public string route;
-            public string version;
-            public string mimetype = null;
-            public List<string> Lines = new List<string>();
+        public TcpClient tcpsck;
+        private ServerListener serverListener;
 
-            public int ContentLength { get; internal set; }
-            public string ContentType { get; internal set; }
-            public string queryString { get; internal set; }
+        public ClientConnection(ServerListener serverListener)
+        {
+            this.serverListener = serverListener;
         }
 
-        static Dictionary<int, string> _HttpReposnes;
-        static Dictionary<int, string> HttpReposnes
+        List<string> parseContentDisposition(string line)
         {
-            get
-            {
-                if (_HttpReposnes == null)
-                    _HttpReposnes = new Dictionary<int, string>()
-            {
-                { 100, "HTTP/1.1 100 Continue\r\n" },
-                { 101, "HTTP/1.1 101 Switching Protocols\r\n" },
-                { 200, "HTTP/1.1 200 OK\r\n" },
-                { 201, "HTTP/1.1 201 Created\r\n" },
-                { 202, "HTTP/1.1 202 Accepted\r\n" },
-                { 203, "HTTP/1.1 203 Non-Authoritative Information\r\n" },
-                { 204, "HTTP/1.1 204 No Content\r\n" },
-                { 205, "HTTP/1.1 205 Reset Content\r\n" },
-                { 206, "HTTP/1.1 206 Partial Content\r\n" },
-                { 300, "HTTP/1.1 300 Multiple Choices\r\n" },
-                { 301, "HTTP/1.1 301 Moved Permanently\r\n" },
-                { 302, "HTTP/1.1 302 Found\r\n" },
-                { 303, "HTTP/1.1 303 See Other\r\n" },
-                { 304, "HTTP/1.1 304 Not Modified\r\n" },
-                { 305, "HTTP/1.1 305 Use Proxy\r\n" },
-                { 307, "HTTP/1.1 307 Temporary Redirect\r\n" },
-                { 400, "HTTP/1.1 400 Bad Request\r\n" },
-                { 401, "HTTP/1.1 401 Unauthorized\r\n" },
-                { 402, "HTTP/1.1 402 Payment Required\r\n" },
-                { 403, "HTTP/1.1 403 Forbidden\r\n" },
-                { 404, "HTTP/1.1 404 Not Found\r\n" },
-                { 405, "HTTP/1.1 405 Method Not Allowed\r\n" },
-                { 406, "HTTP/1.1 406 Not Acceptable\r\n" },
-                { 407, "HTTP/1.1 407 Proxy Authentication Required\r\n" },
-                { 408, "HTTP/1.1 408 Request Timeout\r\n" },
-                { 409, "HTTP/1.1 409 Conflict\r\n" },
-                { 410, "HTTP/1.1 410 Gone\r\n" },
-                { 411, "HTTP/1.1 411 Length Required\r\n" },
-                { 412, "HTTP/1.1 412 Precondition Failed\r\n" },
-                { 413, "HTTP/1.1 413 Request Entity Too Large\r\n" },
-                { 414, "HTTP/1.1 414 Request-URI Too Long\r\n" },
-                { 415, "HTTP/1.1 415 Unsupported Media Type\r\n" },
-                { 416, "HTTP/1.1 416 Requested Range Not Satisfiable\r\n" },
-                { 417, "HTTP/1.1 417 Expectation Failed\r\n" },
-                { 500, "HTTP/1.1 500 Internal Server Error\r\n" },
-                { 501, "HTTP/1.1 501 Not Implemented\r\n" },
-                { 502, "HTTP/1.1 502 Bad Gateway\r\n" },
-                { 503, "HTTP/1.1 503 Service Unavailable\r\n" },
-                { 504, "HTTP/1.1 504 Gateway Timeout\r\n" },
-                { 505, "HTTP/1.1 505 HTTP Version Not Supported\r\n" },
-            };
+            var split = new List<string>();
 
-                return _HttpReposnes;
+            int j = 0;
+            bool quoting = false;
+            for (int i = j; i < line.Length; i++)
+            {
+                if (line[i] == '"')
+                    if (!quoting)
+                        quoting = true;
+                    else
+                        quoting = false;
+
+                if (line[i] == ' ' || line[i] == '\r')
+                    if (!quoting)
+                    {
+                        if (line[i - 1] == ';')
+                            split.Add(line.Substring(j, i - j - 1));
+                        else
+                            split.Add(line.Substring(j, i - j));
+
+                        j = i + 1;
+                    }
             }
-        }
-
-        static Dictionary<string, string> _MimeTypes;
-        static Dictionary<string, string> MimeTypes
-        {
-            get
-            {
-                if (_MimeTypes == null)
-                    _MimeTypes = new Dictionary<string, string>()
-            {
-               {".rtf", "application/rtf" },
-                {".midi", "audio/midi" },
-                {".mid", "audio/midi" },
-                {".pict", "image/pict" },
-                {".pct", "image/pict" },
-                {".pic", "image/pict" },
-                {".xul", "text/xul" },
-                // geenral
-                {".js", "application/javascript" },
-                {".mjs", "application/javascript" },
-                {".json", "application/json" },
-                {".doc", "application/msword" },
-                {".dot", "application/msword" },
-                {".wiz", "application/msword" },
-                {".bin", "application/octet-stream" },
-                {".a", "application/octet-stream" },
-                {".dll", "application/octet-stream" },
-                {".exe", "application/octet-stream" },
-                {".o", "application/octet-stream" },
-                {".obj", "application/octet-stream" },
-                {".so", "application/octet-stream" },
-                {".oda", "application/oda" },
-                {".pdf", "application/pdf" },
-                {".p7c", "application/pkcs7-mime" },
-                {".ps", "application/postscript" },
-                {".ai", "application/postscript" },
-                {".eps", "application/postscript" },
-                {".m3u", "application/vnd.apple.mpegurl" },
-                {".m3u8", "application/vnd.apple.mpegurl" },
-                {".xls", "application/vnd.ms-excel" },
-                {".xlb", "application/vnd.ms-excel" },
-                {".ppt", "application/vnd.ms-powerpoint" },
-                {".pot", "application/vnd.ms-powerpoint" },
-                {".ppa", "application/vnd.ms-powerpoint" },
-                {".pps", "application/vnd.ms-powerpoint" },
-                {".pwz", "application/vnd.ms-powerpoint" },
-                {".wasm", "application/wasm" },
-                {".bcpio", "application/x-bcpio" },
-                {".cpio", "application/x-cpio" },
-                {".csh", "application/x-csh" },
-                {".dvi", "application/x-dvi" },
-                {".gtar", "application/x-gtar" },
-                {".hdf", "application/x-hdf" },
-                {".latex", "application/x-latex" },
-                {".mif", "application/x-mif" },
-                {".cdf", "application/x-netcdf" },
-                {".nc", "application/x-netcdf" },
-                {".p12", "application/x-pkcs12" },
-                {".pfx", "application/x-pkcs12" },
-                {".ram", "application/x-pn-realaudio" },
-                {".pyc", "application/x-python-code" },
-                {".pyo", "application/x-python-code" },
-                {".sh", "application/x-sh" },
-                {".shar", "application/x-shar" },
-                {".swf", "application/x-shockwave-flash" },
-                {".sv4cpio", "application/x-sv4cpio" },
-                {".sv4crc", "application/x-sv4crc" },
-                {".tar", "application/x-tar" },
-                {".tcl", "application/x-tcl" },
-                {".tex", "application/x-tex" },
-                {".texi", "application/x-texinfo" },
-                {".texinfo", "application/x-texinfo" },
-                {".roff", "application/x-troff" },
-                {".t", "application/x-troff" },
-                {".tr", "application/x-troff" },
-                {".man", "application/x-troff-man" },
-                {".me", "application/x-troff-me" },
-                {".ms", "application/x-troff-ms" },
-                {".ustar", "application/x-ustar" },
-                {".src", "application/x-wais-source" },
-                {".xsl", "application/xml" },
-                {".rdf", "application/xml" },
-                {".wsdl", "application/xml" },
-                {".xpdl", "application/xml" },
-                {".zip", "application/zip" },
-                {".au", "audio/basic" },
-                {".snd", "audio/basic" },
-                {".mp3", "audio/mpeg" },
-                {".mp2", "audio/mpeg" },
-                {".aif", "audio/x-aiff" },
-                {".aifc", "audio/x-aiff" },
-                {".aiff", "audio/x-aiff" },
-                {".ra", "audio/x-pn-realaudio" },
-                {".wav", "audio/x-wav" },
-                {".bmp", "image/x-ms-bmp" },
-                {".gif", "image/gif" },
-                {".ief", "image/ief" },
-                {".jpg", "image/jpeg" },
-                {".jpe", "image/jpeg" },
-                {".jpeg", "image/jpeg" },
-                {".png", "image/png" },
-                {".svg", "image/svg+xml" },
-                {".tiff", "image/tiff" },
-                {".tif", "image/tiff" },
-                {".ico", "image/vnd.microsoft.icon" },
-                {".ras", "image/x-cmu-raster" },
-                {".pnm", "image/x-portable-anymap" },
-                {".pbm", "image/x-portable-bitmap" },
-                {".pgm", "image/x-portable-graymap" },
-                {".ppm", "image/x-portable-pixmap" },
-                {".rgb", "image/x-rgb" },
-                {".xbm", "image/x-xbitmap" },
-                {".xpm", "image/x-xpixmap" },
-                {".xwd", "image/x-xwindowdump" },
-                {".eml", "message/rfc822" },
-                {".mht", "message/rfc822" },
-                {".mhtml", "message/rfc822" },
-                {".nws", "message/rfc822" },
-                {".css", "text/css" },
-                {".csv", "text/csv" },
-                {".html", "text/html" },
-                {".htm", "text/html" },
-                {".txt", "text/plain" },
-                {".bat", "text/plain" },
-                {".c", "text/plain" },
-                {".h", "text/plain" },
-                {".ksh", "text/plain" },
-                {".pl", "text/plain" },
-                {".rtx", "text/richtext" },
-                {".tsv", "text/tab-separated-values" },
-                {".py", "text/x-python" },
-                {".etx", "text/x-setext" },
-                {".sgm", "text/x-sgml" },
-                {".sgml", "text/x-sgml" },
-                {".vcf", "text/x-vcard" },
-                {".xml", "text/xml" },
-                {".mp4", "video/mp4" },
-                {".mpeg", "video/mpeg" },
-                {".m1v", "video/mpeg" },
-                {".mpa", "video/mpeg" },
-                {".mpe", "video/mpeg" },
-                {".mpg", "video/mpeg" },
-                {".mov", "video/quicktime" },
-                {".qt", "video/quicktime" },
-                {".webm", "video/webm" },
-                {".avi", "video/x-msvideo" },
-                {".movie", "video/x-sgi-movie" },
-
-            };
-
-                return _MimeTypes;
-            }
-        }
-
-        public Client()
-        {
-
-
+            return split;
         }
 
         public void Handle(object p1)
         {
-            var tcpclient = p1 as TcpClient;
+            tcpsck = p1 as TcpClient;
 
-            Trace.TraceInformation("Connected {0}", tcpclient.Client.SocketType);
+            Trace.TraceInformation("Connected {0} - {1}", tcpsck.Client.RemoteEndPoint, tcpsck.Client.RemoteEndPoint.AddressFamily);
 
             try
             {
-                while (!tcpclient.Connected)
+                var request = new Request(this);
+
+                // TODO implement a timeout
+                // wait for connection
+                while (!tcpsck.Connected)
+                    Debug.WriteLine("waiting for connection");
+
+                var buffer = new Byte[4 * 1024];
+                int bufferLength = 0;
+
+                tcpsck.ReceiveTimeout = 30000;
+
+                // Data buffer
+                bufferLength = tcpsck.Client.Receive(buffer);
+
+                Debug.WriteLine("\t[Client] receive {0} bytes", bufferLength, null);
+
+                if (bufferLength < 1)
                 {
-                    // Todo implement a timeout
-                    // wait for connection
+                    Debug.WriteLine("\t[Client] nothing to respond", bufferLength, null);
+                    return;
                 }
-
-                Respond(tcpclient);
-
-            }
-            catch (SocketException ex)
-            {
-                if (ex.SocketErrorCode == SocketError.TimedOut)
-                    Debug.WriteLine("Timeout - {0}", ex.Message, null);
-#if (DEBUG)
-                else
-                    throw ex;
-#endif
-            }
-
-            catch (Exception ex)
-            {
-                Trace.TraceError(ex.Message);
-#if (DEBUG)
-                throw ex;
-#endif
-            }
-            finally
-            {
-                tcpclient.Close();
-            }
-        }
-
-        public void Respond(TcpClient socket)
-        {
-            var buffer = new Byte[4 * 1024];
-            int bufferLength = 0;
-
-            socket.ReceiveTimeout = 30000;
-            //socket.ReceiveTimeout = 30000;
-            //socket.SendTimeout = 30000;
-            {
-                // Data buffer 
-                bufferLength = socket.Client.Receive(buffer);
-
-                var request = new Request();
+                // TODO initial receive might not be enough, so far no issues, I think browsers make sure to send the headers in single stream write
 
                 string boundaryMarker = null;
 
@@ -307,14 +96,13 @@ namespace SimpleWebServer
                         if (line == "")
                             break;
 
-                        Debug.WriteLine(line);
+                        Debug.WriteLine("\t[Header] {0}", line, null);
 
                         request.Lines.Add(line);
 
                         // processing GET
                         if (line.StartsWith("GET") || line.StartsWith("POST"))
                         {
-
                             // TODO longer url encoded requests passing buffer length
 
                             var t = line.Split(' ');
@@ -326,18 +114,17 @@ namespace SimpleWebServer
 
                                 if (j > -1)
                                 {
-                                    request.route = t[1].Substring(0, j);
+                                    request.Route = t[1].Substring(0, j);
                                     request.queryString = t[1].Substring(j + 1);
                                 }
                                 else
                                 {
-                                    request.route = t[1];
+                                    request.Route = t[1];
                                 }
                             }
 
                             if (t.Length > 1)
                                 request.version = t[2];
-
                         }
 
                         // processing headers - Content-Length
@@ -347,6 +134,17 @@ namespace SimpleWebServer
                             request.ContentLength = int.Parse(t);
                         }
 
+                        if (line.StartsWith("Range: bytes="))
+                        {
+                            // ex> Range: bytes=1048576-
+                            var t = line.Substring("Range: bytes=".Length).Split('-');
+
+                            request.ContentRangeStart = int.Parse(t[0]);
+
+                            if (t[1] != string.Empty)
+                                request.ContentRangeEnd = int.Parse(t[1]);
+                        }
+
                         // processing headers - Content-Type
                         if (line.StartsWith("Content-Type:"))
                         {
@@ -354,10 +152,12 @@ namespace SimpleWebServer
                             request.ContentType = t[1];
                             if (t.Length > 2)
                                 if (t[2].StartsWith("boundary="))
-                                {
                                     boundaryMarker = "--" + t[2].Substring("boundary=".Length);
-                                }
+                        }
 
+                        if (line.StartsWith("Sec-WebSocket-Key:"))
+                        {
+                            request.SecWebSocketKey = line.Split(' ')[1];
                         }
                     }
                 }
@@ -371,7 +171,7 @@ namespace SimpleWebServer
 
                     while (cStart < request.ContentLength)
                     {
-                        bufferLength = socket.Client.Receive(buffer);
+                        bufferLength = tcpsck.Client.Receive(buffer);
                         System.Buffer.BlockCopy(buffer, 0, t, cStart, bufferLength);
                         cStart += bufferLength;
                     }
@@ -386,7 +186,7 @@ namespace SimpleWebServer
 
                     while (cStart < request.ContentLength)
                     {
-                        bufferLength = socket.Client.Receive(buffer);
+                        bufferLength = tcpsck.Client.Receive(buffer);
 
                         System.Buffer.BlockCopy(buffer, 0, t, cStart, bufferLength);
                         cStart += bufferLength;
@@ -402,7 +202,7 @@ namespace SimpleWebServer
 
                     while (cStart < request.ContentLength)
                     {
-                        bufferLength = socket.Client.Receive(buffer);
+                        bufferLength = tcpsck.Client.Receive(buffer);
                         System.Buffer.BlockCopy(buffer, 0, t, cStart, bufferLength);
                         cStart += bufferLength;
                     }
@@ -414,7 +214,6 @@ namespace SimpleWebServer
                         if (t[i] == '\r' && t[i + 1] == '\n')
                         {
                             line = Encoding.ASCII.GetString(t, cStart, i - cStart);
-
                             cStart = i + 2;
                         }
                         else
@@ -429,7 +228,7 @@ namespace SimpleWebServer
                         if (!line.EndsWith(boundaryMarker))
                             throw new InvalidOperationException("Expecting boundary");
 
-                        Debug.WriteLine("boundary: {0}", line, null);
+                        Debug.WriteLine("\t[Content] boundary: {0}", line, null);
 
 
                         var bLines = new List<string>();
@@ -446,7 +245,7 @@ namespace SimpleWebServer
                                 if (bline == "")
                                     break;
 
-                                Debug.WriteLine(bline);
+                                Debug.WriteLine("\t\t[Header] {0}", bline, null);
 
                                 bLines.Add(bline);
                             }
@@ -471,8 +270,8 @@ namespace SimpleWebServer
                                 System.Buffer.BlockCopy(t, cStart, payload, 0, ic - cStart - 2);
 
                                 // + 2 for cr and lf
-                                Debug.WriteLineIf(payload.Length < 256, Encoding.ASCII.GetString(t, cStart, ic - cStart - 2));
-                                Debug.WriteLine("Boundary length: {0}", payload.Length, null);
+                                Debug.WriteLine("\t\t[Content] length: {0}", payload.Length, null);
+                                Debug.WriteLineIf(payload.Length < 256, string.Format("\t\t[Content] {0}", Encoding.ASCII.GetString(t, cStart, ic - cStart - 2)));
                                 cStart = i = ic;
                                 break;
                             }
@@ -480,56 +279,52 @@ namespace SimpleWebServer
                     }
                 }
 
-                bool nothing = true;
 
-                if (request.route != null)
-                    foreach (string mime in MimeTypes.Keys)
-                        if (request.route.EndsWith(mime))
-                            request.mimetype = MimeTypes[mime];
-
-                if (request.mimetype != null)
-                    if (System.IO.File.Exists($"./../../../wwwroot{request.route}"))
-                    {
-                        nothing = false;
-                        byte[] response = System.IO.File.ReadAllBytes($"./../../../wwwroot{request.route}");
-                        socket.Client.Send(Encoding.ASCII.GetBytes(HttpReposnes[200]));
-                        socket.Client.Send(Encoding.ASCII.GetBytes($"Content-Length: {response.Length}\r\n"));
-                        socket.Client.Send(Encoding.ASCII.GetBytes($"Content-Type: {request.mimetype}\r\n"));
-                        socket.Client.Send(Encoding.ASCII.GetBytes("Connection: Closed\r\n"));
-                        socket.Client.Send(Encoding.ASCII.GetBytes("\r\n"));
-                        socket.Client.Send(response);
-                    }
-                    else
-                    {
-                        nothing = false;
-                        socket.Client.Send(Encoding.ASCII.GetBytes(HttpReposnes[404]));
-                        socket.Client.Send(Encoding.ASCII.GetBytes("Connection: Closed\r\n"));
-                        socket.Client.Send(Encoding.ASCII.GetBytes("\r\n"));
-                    }
-
-                if (nothing)
-                {
-                    socket.Client.Send(Encoding.ASCII.GetBytes(HttpReposnes[200]));
-                    socket.Client.Send(Encoding.ASCII.GetBytes($"Content-Length: 0\r\n"));
-                    socket.Client.Send(Encoding.ASCII.GetBytes($"Content-Type: {MimeTypes[".html"]}\r\n"));
-                    socket.Client.Send(Encoding.ASCII.GetBytes("Connection: Closed\r\n"));
-                    socket.Client.Send(Encoding.ASCII.GetBytes("\r\n"));
-                }
+                serverListener.Endpoint.OnRespond(request);
+            }
+            catch (SocketException ex)
+            {
+                if (ex.SocketErrorCode == SocketError.TimedOut)
+                    Trace.TraceError("Timeout - {0}", ex.Message);
+#if (DEBUG)
+                //else
+                //    throw ex;
+#endif
             }
 
+            catch (Exception ex)
+            {
+                Trace.TraceError(ex.Message);
+#if (DEBUG)
+                throw ex;
+#endif
+            }
+            finally
+            {
+                tcpsck.Close();
+            }
         }
 
     }
 
-    public class ServerListener
+    class ServerListener
     {
+        private IPAddress address;
+        private int port;
+
+        public SimpleWebServer.Endpoint Endpoint { get; set; }
+
+        public ServerListener(IPAddress address, int port, Endpoint endpoint)
+        {
+            this.address = address;
+            this.port = port;
+            this.Endpoint = endpoint;
+        }
+        
         public void Listen()
         {
-            var ipHost = Dns.GetHostEntry(Dns.GetHostName());
-            var ipAddr = ipHost.AddressList[0];
-            var localEndPoint = new IPEndPoint(IPAddress.Loopback, 65125);
-
-            var listener = new TcpListener(localEndPoint);
+            var ep = new IPEndPoint(address, port);
+            var listener = new TcpListener(ep);
             try
             {
 
@@ -537,34 +332,56 @@ namespace SimpleWebServer
                 listener.Start(10);
 
                 // queue up to 10 requests
-                Trace.TraceInformation("Listening http://{0}:{1}/Index.html", "localhost", localEndPoint.Port);
+                Trace.TraceInformation("Listening http://{0}:{1}/Index.html", "localhost", ep.Port);
 
                 while (true)
                 {
-                    var client = new Client();
+                    var client = new ClientConnection(this);
                     var t = new Thread(new ParameterizedThreadStart(client.Handle));
+                    t.IsBackground = true;
                     t.Start(listener.AcceptTcpClient());
                 }
             }
             catch (Exception e)
             {
-                Debug.WriteLine(e.Message);
-
+                Trace.TraceError(e.Message);
                 throw e;
             }
         }
     }
-    public class Server
+    public class ServerThread
     {
-
-        public void Listen()
+        readonly ServerListener server;
+        public WebSocketEndpoint test;
+        public ServerThread()
         {
-            var i = new ServerListener();
+            var staticEp = new StaticEndpoint("<!DOCTYPE html><html><head></head><body><p>Hello, world!</p></body></html>");
+            var wsEP = new WebSocketEndpoint("/TestWS");
+            var sseEP = new ServerSentEventEndpoint("/TestSSE");
+            var fileEP = new StaticFileEndpoint("./../../../wwwroot");
+            var ajaxEP = new WebServiceEndpoint("/TestAjax",()=> { return new WebServiceEndpoint.Reponse("OK"); });
+            var HTML404Endpoint = new HTMLStatusEndpoint(404);
 
-            var t = new Thread(new ThreadStart(i.Listen));
+            var routerEp = new RouterEndpoint(ajaxEP, sseEP, wsEP, fileEP, HTML404Endpoint);
+
+            server = new ServerListener(IPAddress.Loopback, 65125, routerEp);
+
+            test = wsEP;
+            wsEP.Receive = (e) =>
+            {
+                Debug.WriteLine(Encoding.ASCII.GetString(e));
+            };
+        }
+
+        public void RegisteredEndpoint(EndPoint p)
+        {
+   
+        }
+
+        public void Start()
+        {
+            var t = new Thread(new ThreadStart(server.Listen));
             t.Start();
-
-            t.Join();
         }
     }
 

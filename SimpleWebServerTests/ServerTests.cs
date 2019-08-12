@@ -14,8 +14,8 @@ namespace SimpleWebServer.Tests
         [TestMethod()]
         public void ListenTest()
         {
-            var t = new Server();
-            t.Listen();
+            var t = new ServerThread();
+            t.Start();
             Assert.Fail();
         }
     }

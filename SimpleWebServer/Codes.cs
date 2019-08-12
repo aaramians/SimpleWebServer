@@ -1,0 +1,218 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace SimpleWebServer
+{
+    public class Codes
+    {
+        static Dictionary<int, string> _HttpReposnes;
+        public static Dictionary<int, string> HttpReposnes
+        {
+            get
+            {
+                if (_HttpReposnes == null)
+                    _HttpReposnes = new Dictionary<int, string>()
+            {
+                { 100, "HTTP/1.1 100 Continue\r\n" },
+                { 101, "HTTP/1.1 101 Switching Protocols\r\n" },
+                { 200, "HTTP/1.1 200 OK\r\n" },
+                { 201, "HTTP/1.1 201 Created\r\n" },
+                { 202, "HTTP/1.1 202 Accepted\r\n" },
+                { 203, "HTTP/1.1 203 Non-Authoritative Information\r\n" },
+                { 204, "HTTP/1.1 204 No Content\r\n" },
+                { 205, "HTTP/1.1 205 Reset Content\r\n" },
+                { 206, "HTTP/1.1 206 Partial Content\r\n" },
+                { 300, "HTTP/1.1 300 Multiple Choices\r\n" },
+                { 301, "HTTP/1.1 301 Moved Permanently\r\n" },
+                { 302, "HTTP/1.1 302 Found\r\n" },
+                { 303, "HTTP/1.1 303 See Other\r\n" },
+                { 304, "HTTP/1.1 304 Not Modified\r\n" },
+                { 305, "HTTP/1.1 305 Use Proxy\r\n" },
+                { 307, "HTTP/1.1 307 Temporary Redirect\r\n" },
+                { 400, "HTTP/1.1 400 Bad Request\r\n" },
+                { 401, "HTTP/1.1 401 Unauthorized\r\n" },
+                { 402, "HTTP/1.1 402 Payment Required\r\n" },
+                { 403, "HTTP/1.1 403 Forbidden\r\n" },
+                { 404, "HTTP/1.1 404 Not Found\r\n" },
+                { 405, "HTTP/1.1 405 Method Not Allowed\r\n" },
+                { 406, "HTTP/1.1 406 Not Acceptable\r\n" },
+                { 407, "HTTP/1.1 407 Proxy Authentication Required\r\n" },
+                { 408, "HTTP/1.1 408 Request Timeout\r\n" },
+                { 409, "HTTP/1.1 409 Conflict\r\n" },
+                { 410, "HTTP/1.1 410 Gone\r\n" },
+                { 411, "HTTP/1.1 411 Length Required\r\n" },
+                { 412, "HTTP/1.1 412 Precondition Failed\r\n" },
+                { 413, "HTTP/1.1 413 Request Entity Too Large\r\n" },
+                { 414, "HTTP/1.1 414 Request-URI Too Long\r\n" },
+                { 415, "HTTP/1.1 415 Unsupported Media Type\r\n" },
+                { 416, "HTTP/1.1 416 Requested Range Not Satisfiable\r\n" },
+                { 417, "HTTP/1.1 417 Expectation Failed\r\n" },
+                { 500, "HTTP/1.1 500 Internal Server Error\r\n" },
+                { 501, "HTTP/1.1 501 Not Implemented\r\n" },
+                { 502, "HTTP/1.1 502 Bad Gateway\r\n" },
+                { 503, "HTTP/1.1 503 Service Unavailable\r\n" },
+                { 504, "HTTP/1.1 504 Gateway Timeout\r\n" },
+                { 505, "HTTP/1.1 505 HTTP Version Not Supported\r\n" },
+            };
+
+                return _HttpReposnes;
+            }
+        }
+
+        static Dictionary<string, string> _MimeTypes;
+        public static Dictionary<string, string> MimeTypes
+        {
+            get
+            {
+                if (_MimeTypes == null)
+                    _MimeTypes = new Dictionary<string, string>()
+            {
+               {".rtf", "application/rtf" },
+                {".midi", "audio/midi" },
+                {".mid", "audio/midi" },
+                {".pict", "image/pict" },
+                {".pct", "image/pict" },
+                {".pic", "image/pict" },
+                {".xul", "text/xul" },
+                // geenral
+                {".js", "application/javascript" },
+                {".mjs", "application/javascript" },
+                {".json", "application/json" },
+                {".doc", "application/msword" },
+                {".dot", "application/msword" },
+                {".wiz", "application/msword" },
+                {".bin", "application/octet-stream" },
+                {".a", "application/octet-stream" },
+                {".dll", "application/octet-stream" },
+                {".exe", "application/octet-stream" },
+                {".o", "application/octet-stream" },
+                {".obj", "application/octet-stream" },
+                {".so", "application/octet-stream" },
+                {".oda", "application/oda" },
+                {".pdf", "application/pdf" },
+                {".p7c", "application/pkcs7-mime" },
+                {".ps", "application/postscript" },
+                {".ai", "application/postscript" },
+                {".eps", "application/postscript" },
+                {".m3u", "application/vnd.apple.mpegurl" },
+                {".m3u8", "application/vnd.apple.mpegurl" },
+                {".xls", "application/vnd.ms-excel" },
+                {".xlb", "application/vnd.ms-excel" },
+                {".ppt", "application/vnd.ms-powerpoint" },
+                {".pot", "application/vnd.ms-powerpoint" },
+                {".ppa", "application/vnd.ms-powerpoint" },
+                {".pps", "application/vnd.ms-powerpoint" },
+                {".pwz", "application/vnd.ms-powerpoint" },
+                {".wasm", "application/wasm" },
+                {".bcpio", "application/x-bcpio" },
+                {".cpio", "application/x-cpio" },
+                {".csh", "application/x-csh" },
+                {".dvi", "application/x-dvi" },
+                {".gtar", "application/x-gtar" },
+                {".hdf", "application/x-hdf" },
+                {".latex", "application/x-latex" },
+                {".mif", "application/x-mif" },
+                {".cdf", "application/x-netcdf" },
+                {".nc", "application/x-netcdf" },
+                {".p12", "application/x-pkcs12" },
+                {".pfx", "application/x-pkcs12" },
+                {".ram", "application/x-pn-realaudio" },
+                {".pyc", "application/x-python-code" },
+                {".pyo", "application/x-python-code" },
+                {".sh", "application/x-sh" },
+                {".shar", "application/x-shar" },
+                {".swf", "application/x-shockwave-flash" },
+                {".sv4cpio", "application/x-sv4cpio" },
+                {".sv4crc", "application/x-sv4crc" },
+                {".tar", "application/x-tar" },
+                {".tcl", "application/x-tcl" },
+                {".tex", "application/x-tex" },
+                {".texi", "application/x-texinfo" },
+                {".texinfo", "application/x-texinfo" },
+                {".roff", "application/x-troff" },
+                {".t", "application/x-troff" },
+                {".tr", "application/x-troff" },
+                {".man", "application/x-troff-man" },
+                {".me", "application/x-troff-me" },
+                {".ms", "application/x-troff-ms" },
+                {".ustar", "application/x-ustar" },
+                {".src", "application/x-wais-source" },
+                {".xsl", "application/xml" },
+                {".rdf", "application/xml" },
+                {".wsdl", "application/xml" },
+                {".xpdl", "application/xml" },
+                {".zip", "application/zip" },
+                {".au", "audio/basic" },
+                {".snd", "audio/basic" },
+                {".mp3", "audio/mpeg" },
+                {".mp2", "audio/mpeg" },
+                {".aif", "audio/x-aiff" },
+                {".aifc", "audio/x-aiff" },
+                {".aiff", "audio/x-aiff" },
+                {".ra", "audio/x-pn-realaudio" },
+                {".wav", "audio/x-wav" },
+                {".bmp", "image/x-ms-bmp" },
+                {".gif", "image/gif" },
+                {".ief", "image/ief" },
+                {".jpg", "image/jpeg" },
+                {".jpe", "image/jpeg" },
+                {".jpeg", "image/jpeg" },
+                {".png", "image/png" },
+                {".svg", "image/svg+xml" },
+                {".tiff", "image/tiff" },
+                {".tif", "image/tiff" },
+                {".ico", "image/vnd.microsoft.icon" },
+                {".ras", "image/x-cmu-raster" },
+                {".pnm", "image/x-portable-anymap" },
+                {".pbm", "image/x-portable-bitmap" },
+                {".pgm", "image/x-portable-graymap" },
+                {".ppm", "image/x-portable-pixmap" },
+                {".rgb", "image/x-rgb" },
+                {".xbm", "image/x-xbitmap" },
+                {".xpm", "image/x-xpixmap" },
+                {".xwd", "image/x-xwindowdump" },
+                {".eml", "message/rfc822" },
+                {".mht", "message/rfc822" },
+                {".mhtml", "message/rfc822" },
+                {".nws", "message/rfc822" },
+                {".css", "text/css" },
+                {".csv", "text/csv" },
+                {".html", "text/html" },
+                {".htm", "text/html" },
+                {".txt", "text/plain" },
+                {".bat", "text/plain" },
+                {".c", "text/plain" },
+                {".h", "text/plain" },
+                {".ksh", "text/plain" },
+                {".pl", "text/plain" },
+                {".rtx", "text/richtext" },
+                {".tsv", "text/tab-separated-values" },
+                {".py", "text/x-python" },
+                {".etx", "text/x-setext" },
+                {".sgm", "text/x-sgml" },
+                {".sgml", "text/x-sgml" },
+                {".vcf", "text/x-vcard" },
+                {".xml", "text/xml" },
+                {".mp4", "video/mp4" },
+                {".mpeg", "video/mpeg" },
+                {".m1v", "video/mpeg" },
+                {".mpa", "video/mpeg" },
+                {".mpe", "video/mpeg" },
+                {".mpg", "video/mpeg" },
+                {".mov", "video/quicktime" },
+                {".qt", "video/quicktime" },
+                {".webm", "video/webm" },
+                {".avi", "video/x-msvideo" },
+                {".movie", "video/x-sgi-movie" },
+
+            };
+
+                return _MimeTypes;
+            }
+        }
+
+    }
+}
