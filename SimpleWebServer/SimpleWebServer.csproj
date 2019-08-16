@@ -41,9 +41,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ASCIIEncoding.cs" />
     <Compile Include="Codes.cs" />
-    <Compile Include="Endpoint.cs" />
+    <Compile Include="Component.cs" />
+    <Compile Include="Service.cs" />
     <Compile Include="Request.cs" />
+    <Compile Include="Respond.cs" />
     <Compile Include="Server.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

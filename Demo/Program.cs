@@ -12,11 +12,15 @@ namespace Demo
     {
         static void Main(string[] args)
         {
+
             Trace.Listeners[0].TraceOutputOptions = TraceOptions.None;
             Trace.UseGlobalLock = true;
 
             var server = new ServerThread();
             server.Start();
+
+            System.Diagnostics.Process.Start("http://localhost:65125/index.html");
+
 
             while (true)
             {

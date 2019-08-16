@@ -9,23 +9,40 @@ namespace SimpleWebServer
 {
     internal class Request
     {
-        public string command;
+        public string Command;
         public string Route;
-        public string version;
-        public string mimetype = null;
-        public List<string> Lines = new List<string>();
+        public string Version;
+
+        public List<string> RawLines = new List<string>();
+
+        public int ContentLength { get; internal set; }
+
+        public string ContentType { get; internal set; }
+
+        public string QueryString { get; internal set; }
+        public Dictionary<string, string> Form { get; internal set; }
+
+
+        public Socket Socket { get; }
+
+        public ResponseComponent Response { get; set; }
+
+        public AuthorizationComponent Authorization;
+
+        public SessionComponent Session;
+        public CookieComponent Cookie;
+
+        public int? RangeStart { get; internal set; }
+
+        public int? RageEnd { get; internal set; }
+
+        public string SecWebSocketKey { get; internal set; }
+        public byte[] Content { get; internal set; }
+
         public Request(ClientConnection client)
         {
             this.Socket = client.tcpsck.Client;
         }
-
-        public int ContentLength { get; internal set; }
-        public string ContentType { get; internal set; }
-        public string queryString { get; internal set; }
-        public Socket Socket { get; }
-        public int? ContentRangeStart { get; internal set; }
-        public int? ContentRangeEnd { get; internal set; }
-        public string SecWebSocketKey { get; internal set; }
     }
 
 }

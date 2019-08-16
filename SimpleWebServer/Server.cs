@@ -48,6 +48,70 @@ namespace SimpleWebServer
             return split;
         }
 
+        string URIParse(string input)
+        {
+            char[] chinput = input.ToCharArray();
+            int j = 0;
+            for (int i = 0; i < input.Length; i++)
+            {
+
+                if (chinput[i] == '%')
+                {
+                    string d1 = new string(new char[] { chinput[i], chinput[i + 1], chinput[i + 2] });
+
+                    if (ASCIIURLEncoding.UTF8Encoding.Keys.Contains(d1))
+                    {
+                        char m = ASCIIURLEncoding.UTF8Encoding[d1][0];
+                        chinput[j] = m;
+                        i = i + 2;
+                        j = j + 1;
+                    }
+                    else
+                    {
+                        if (chinput[i + 3] == '%')
+                        {
+                            string d2 = d1 + new string(new char[] { chinput[i + 3], chinput[i + 4], chinput[i + 5] });
+                            if (ASCIIURLEncoding.UTF8Encoding.Keys.Contains(d2))
+                            {
+                                char m = ASCIIURLEncoding.UTF8Encoding[d2][0];
+                                chinput[j] = m;
+                                i = i + 5;
+                                j = j + 1;
+                            }
+                            else
+                            {
+                                if (chinput[i + 6] == '%')
+                                {
+                                    string d3 = d2 + new string(new char[] { chinput[i + 6], chinput[i + 7], chinput[i + 8] });
+
+                                    if (ASCIIURLEncoding.UTF8Encoding.Keys.Contains(d3))
+                                    {
+                                        char m = ASCIIURLEncoding.UTF8Encoding[d3][0];
+                                        chinput[j] = m;
+                                        i = i + 8;
+                                        j = j + 1;
+                                    }
+                                }
+
+                            }
+
+                        }
+                    }
+
+                }
+                else
+                {
+                    chinput[j] = chinput[i];
+                    j = j + 1;
+                }
+            }
+
+
+            return new string(chinput, 0, j);
+        }
+
+
+
         public void Handle(object p1)
         {
             tcpsck = p1 as TcpClient;
@@ -63,10 +127,13 @@ namespace SimpleWebServer
                 while (!tcpsck.Connected)
                     Debug.WriteLine("waiting for connection");
 
+                tcpsck.ReceiveTimeout = 30 * 1000;
+
+                //while (tcpsck.Available < 10)
+                //    Debug.WriteLine("waiting for request");
+
                 var buffer = new Byte[4 * 1024];
                 int bufferLength = 0;
-
-                tcpsck.ReceiveTimeout = 30000;
 
                 // Data buffer
                 bufferLength = tcpsck.Client.Receive(buffer);
@@ -98,7 +165,7 @@ namespace SimpleWebServer
 
                         Debug.WriteLine("\t[Header] {0}", line, null);
 
-                        request.Lines.Add(line);
+                        request.RawLines.Add(line);
 
                         // processing GET
                         if (line.StartsWith("GET") || line.StartsWith("POST"))
@@ -106,7 +173,7 @@ namespace SimpleWebServer
                             // TODO longer url encoded requests passing buffer length
 
                             var t = line.Split(' ');
-                            request.command = t[0];
+                            request.Command = t[0];
 
                             if (t.Length > 0)
                             {
@@ -115,7 +182,16 @@ namespace SimpleWebServer
                                 if (j > -1)
                                 {
                                     request.Route = t[1].Substring(0, j);
-                                    request.queryString = t[1].Substring(j + 1);
+                                    request.QueryString = t[1].Substring(j + 1);
+
+
+                                    request.Form = request.QueryString
+                                        .Split('&')
+                                        .Select(q => new { Position = q.IndexOf('='), Line = q })
+                                        .ToDictionary(
+                                            w => w.Line.Substring(0, w.Position),
+                                            w => URIParse(w.Line.Substring(w.Position + 1)));
+
                                 }
                                 else
                                 {
@@ -124,7 +200,7 @@ namespace SimpleWebServer
                             }
 
                             if (t.Length > 1)
-                                request.version = t[2];
+                                request.Version = t[2];
                         }
 
                         // processing headers - Content-Length
@@ -139,10 +215,10 @@ namespace SimpleWebServer
                             // ex> Range: bytes=1048576-
                             var t = line.Substring("Range: bytes=".Length).Split('-');
 
-                            request.ContentRangeStart = int.Parse(t[0]);
+                            request.RangeStart = int.Parse(t[0]);
 
                             if (t[1] != string.Empty)
-                                request.ContentRangeEnd = int.Parse(t[1]);
+                                request.RageEnd = int.Parse(t[1]);
                         }
 
                         // processing headers - Content-Type
@@ -159,22 +235,34 @@ namespace SimpleWebServer
                         {
                             request.SecWebSocketKey = line.Split(' ')[1];
                         }
+
+                        if (line.StartsWith("Cookie:"))
+                        {
+                            request.Cookie = new CookieComponent(request, line);
+                        }
                     }
                 }
 
                 // processing content
                 if (request.ContentType == "application/x-www-form-urlencoded")
                 {
-                    byte[] t = new byte[request.ContentLength];
-                    System.Buffer.BlockCopy(buffer, start, t, 0, bufferLength - start);
+                    request.Content = new byte[request.ContentLength];
+                    System.Buffer.BlockCopy(buffer, start, request.Content, 0, bufferLength - start);
                     var cStart = bufferLength - start;
 
                     while (cStart < request.ContentLength)
                     {
                         bufferLength = tcpsck.Client.Receive(buffer);
-                        System.Buffer.BlockCopy(buffer, 0, t, cStart, bufferLength);
+                        System.Buffer.BlockCopy(buffer, 0, request.Content, cStart, bufferLength);
                         cStart += bufferLength;
                     }
+
+                    request.Form = Encoding.ASCII.GetString(request.Content)
+                        .Split('&')
+                        .Select(q => new { Position = q.IndexOf('='), Line = q })
+                        .ToDictionary(
+                            w => w.Line.Substring(0, w.Position),
+                            w => URIParse(w.Line.Substring(w.Position + 1)));
                 }
 
                 if (request.ContentType == "application/json;")
@@ -280,7 +368,9 @@ namespace SimpleWebServer
                 }
 
 
-                serverListener.Endpoint.OnRespond(request);
+                request.Session = new SessionComponent(request);
+
+                serverListener.Endpoint.Respond(request);
             }
             catch (SocketException ex)
             {
@@ -312,15 +402,15 @@ namespace SimpleWebServer
         private IPAddress address;
         private int port;
 
-        public SimpleWebServer.Endpoint Endpoint { get; set; }
+        public SimpleWebServer.Service Endpoint { get; set; }
 
-        public ServerListener(IPAddress address, int port, Endpoint endpoint)
+        public ServerListener(IPAddress address, int port, Service endpoint)
         {
             this.address = address;
             this.port = port;
             this.Endpoint = endpoint;
         }
-        
+
         public void Listen()
         {
             var ep = new IPEndPoint(address, port);
@@ -349,22 +439,34 @@ namespace SimpleWebServer
             }
         }
     }
+
     public class ServerThread
     {
         readonly ServerListener server;
-        public WebSocketEndpoint test;
+        public WebSocketService test;
         public ServerThread()
         {
-            var staticEp = new StaticEndpoint("<!DOCTYPE html><html><head></head><body><p>Hello, world!</p></body></html>");
-            var wsEP = new WebSocketEndpoint("/TestWS");
-            var sseEP = new ServerSentEventEndpoint("/TestSSE");
-            var fileEP = new StaticFileEndpoint("./../../../wwwroot");
-            var ajaxEP = new WebServiceEndpoint("/TestAjax",()=> { return new WebServiceEndpoint.Reponse("OK"); });
-            var HTML404Endpoint = new HTMLStatusEndpoint(404);
+            var staticEp = new StaticService("<!DOCTYPE html><html><head></head><body><p>Authorization Failed!</p></body></html>", ".html");
+            var wsEP = new WebSocketService("/TestWS");
+            var sseEP = new ServerSentEventService("/TestSSE");
+            var fileEP = new FileService("./../../../wwwroot", "");
+            var ajaxEP = new XMLHttpRequestService("/TestAjax");// () => { return new ResponseComponent("OK"); });
+            var HTML404Endpoint = new HTMLCodeService(404);
+            var HTML302Endpoint = new HTMLCodeService(302, "Location: /login.html");
 
-            var routerEp = new RouterEndpoint(ajaxEP, sseEP, wsEP, fileEP, HTML404Endpoint);
+            var routerEp = new RouterService(ajaxEP, sseEP, wsEP, fileEP, HTML404Endpoint);
 
-            server = new ServerListener(IPAddress.Loopback, 65125, routerEp);
+            var AuthenticatorEP = new RouteAuthenticatorService(routerEp, HTML302Endpoint);
+            AuthenticatorEP
+                .AddRoute("unauthenticated", "/login.html")
+                .AddRoute("unauthenticated", "/favicon.ico")
+                .NewGroup("unauthenticated", "authenticated")
+                .AddRoute("authenticated", "/index.html")
+                .AddRoute("authenticated", "/content/main.js")
+                .AddRoute("authenticated", "/content/video.mp4");
+           
+
+            server = new ServerListener(IPAddress.Loopback, 65125, AuthenticatorEP);
 
             test = wsEP;
             wsEP.Receive = (e) =>
@@ -375,7 +477,7 @@ namespace SimpleWebServer
 
         public void RegisteredEndpoint(EndPoint p)
         {
-   
+
         }
 
         public void Start()
